@@ -66,6 +66,7 @@ test_labels  = labels(test_idx);
 % https://se.mathworks.com/matlabcentral/fileexchange/118545-handwritten-digit-recognition-with-simple-neural-net
 % Convolution part credits:
 % http://neuralnetworksanddeeplearning.com/chap6.html
+% https://www.geeksforgeeks.org/computer-vision/backpropagation-in-convolutional-neural-networks/
 
 %% PARAMETERS:
 
@@ -386,3 +387,4 @@ function [dK, db_conv] = conv_backward(img, conv_maps, dFeat, K)
         dK(:,:,f) = conv2(img, rot90(dConv, 2), 'valid');
     end
 end
+
