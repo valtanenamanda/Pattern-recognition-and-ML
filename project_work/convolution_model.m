@@ -44,23 +44,37 @@ for mode = 0:1
     end
 end
 
-n_images = length(images);
+
 %% train test split
 
-idx = randperm(n_images);
+n_images = length(images);
+n_orig = n_files;                    % number of original (non-blurred) images
+orig_idx = 1:n_orig;                 % indices of original images
+blur_idx = n_orig+1 : 2*n_orig;      % indices of blurred images
 
-% 80% train + 20% test
-n_train = floor(0.8 * n_images);
-train_idx = idx(1:n_train);
-test_idx  = idx(n_train+1:end);
+% Random permutation of original image indices
+perm_orig = randperm(n_orig);
+
+% 20% of ORIGINAL images for test
+n_test_orig = floor(0.2 * n_orig);
+test_idx_orig  = perm_orig(1:n_test_orig);          % these are ONLY non-blurred images
+train_idx_orig = perm_orig(n_test_orig+1:end);      % remaining originals
+
+% Training set: remaining originals + all blurred images
+train_idx_all = [train_idx_orig, blur_idx];
+
+% Optional: shuffle training indices
+train_idx_all = train_idx_all(randperm(numel(train_idx_all)));
+
+% Build train and test sets
 
 % train set
-train_images = images(:,:,train_idx);
-train_labels = labels(train_idx);
+train_images = images(:,:,train_idx_all);
+train_labels = labels(train_idx_all);
 
-% test set
-test_images  = images(:,:,test_idx);
-test_labels  = labels(test_idx);
+% test set (only clean originals, no blur)
+test_images  = images(:,:,test_idx_orig);
+test_labels  = labels(test_idx_orig);
 
 %% NEURAL NETWORK code credits: 
 % https://se.mathworks.com/matlabcentral/fileexchange/118545-handwritten-digit-recognition-with-simple-neural-net
@@ -108,13 +122,17 @@ N_epochs = 10;            % Number of training epochs
 learning_rate = 0.05;     
 n_samples = numel(train_labels);
 
-% Store the number of misclassified samples per epoch
+% Store total loss per epoch
+loss_list = zeros(1, N_epochs);
+
+% Store the number of misclassified samples per epoch errors_list = zeros(1, N_epochs);
 errors_list = zeros(1, N_epochs);
 
 for epoch = 1:N_epochs
     % Random order of training samples for this epoch
     example_list = randperm(n_samples);
-    errors = 0;      % Count training errors in this epoch
+    epoch_loss = 0;   % accumulate loss over the epoch
+    errors = 0; % Count training errors in this epoch
 
     for k_i = 1:n_samples
         % Current training sample index (shuffled)
@@ -141,12 +159,16 @@ for epoch = 1:N_epochs
         answer = answer - 1;                % 0–9
 
         % True label (0–9)
-        true_label = train_labels(idx);     
+        true_label = train_labels(idx);  
 
         % Track error if predicted label does not match the true one
         if answer ~= true_label
             errors = errors + 1;
         end
+
+        % Training loss (cross-entropy)
+        eps_val = 1e-12;          % prevent log(0)
+        epoch_loss = epoch_loss - log(O(true_label+1) + eps_val);
 
         % Backpropagation:
 
@@ -188,19 +210,21 @@ for epoch = 1:N_epochs
 
     % Store number of errors for this epoch
     errors_list(epoch) = errors;
+
+    loss_list(epoch) = epoch_loss / n_samples;   % average loss
+
     % Compute training accuracy
     acc = 1 - errors/n_samples;
     fprintf('Epoch %d/%d, errors: %d / %d, accuracy: %.2f %%\n', ...
         epoch, N_epochs, errors, n_samples, acc*100);
 end
 
-% Plot number of errors per epoch
 figure;
-plot(1:N_epochs, errors_list, '-o');
+plot(1:N_epochs, loss_list, '-o', 'LineWidth', 1.5);
 xlabel('Epoch');
-ylabel('Number of errors');
+ylabel('Training loss (cross-entropy)');
+title('Training Loss per Epoch');
 grid on;
-title('Learning history (errors per epoch)');
 
 %% Testing
 
@@ -387,4 +411,3 @@ function [dK, db_conv] = conv_backward(img, conv_maps, dFeat, K)
         dK(:,:,f) = conv2(img, rot90(dConv, 2), 'valid');
     end
 end
-
