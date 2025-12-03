@@ -60,8 +60,11 @@ n_test_orig = floor(0.2 * n_orig);
 test_idx_orig  = perm_orig(1:n_test_orig);          % these are ONLY non-blurred images
 train_idx_orig = perm_orig(n_test_orig+1:end);      % remaining originals
 
+blur_test_idx = test_idx_orig + n_orig;          % blurred counterparts
+blur_train_idx = blur_idx(~ismember(blur_idx, blur_test_idx));
+
 % Training set: remaining originals + all blurred images
-train_idx_all = [train_idx_orig, blur_idx];
+train_idx_all = [train_idx_orig, blur_train_idx];
 
 % Optional: shuffle training indices
 train_idx_all = train_idx_all(randperm(numel(train_idx_all)));
